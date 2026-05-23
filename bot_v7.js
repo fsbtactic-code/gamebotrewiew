@@ -918,10 +918,18 @@ async function run() {
                 await sleep(15000);
             } else {
                 log('❌', `/start ошибка: ${msg || e.code || 'неизвестная'}`, C.red);
-                await sleep(5000);
+                if (msg?.includes('fraud')) {
+                    log('⚠️', 'Антифрод сработал. Ожидаем 30с перед следующей попыткой...', C.yellow);
+                    await sleep(30000);
+                } else {
+                    await sleep(5000);
+                }
             }
             continue;
         }
+
+        // Небольшая пауза перед игрой при безлимите — антифрод
+        if (hasUnlimitedLives) await sleep(3000);
 
         // Simulating gameplay duration to pass server verification
         log('⏱️', `Симуляция игрового процесса (13 сек)${hasUnlimitedLives ? ' ⚡ БЕЗЛИМИТ' : ''}...`, C.dim);
