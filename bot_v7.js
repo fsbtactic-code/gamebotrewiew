@@ -592,13 +592,10 @@ async function autoPlayCubesMaster() {
 // ======================== SESSION MANAGEMENT ========================
 
 async function startSession() {
-    const levelPriority = 46;
+    // НЕ передаём levelPriority — сервер сам выдаёт нужный уровень по прогрессу игрока.
+    // Hardcoded levelPriority: 46 = застревание на одном уровне навсегда!
     const r = await axios.post(`${BASE}/games/v1/game/session/${MODE_ID}/start`,
-        { levelPriority }, { headers: H() });
-    // /start response: { session:{id,...}, modeProgress:{loopSessions:N}, serial: N }
-    // serial — клиентский счётчик, живёт в ответе /start как r.data.serial (если есть)
-    // или в r.data.modeProgress.serial (если есть)
-    // В нашем случае был 239 при loopSessions=119 — это разные вещи!
+        {}, { headers: H() });
     if (r.data?.serial != null) {
         serialCounter = r.data.serial;
         log('🔄', `Serial из /start: ${serialCounter}`, C.dim);
@@ -821,7 +818,7 @@ async function run() {
                     throw new Error('ID сессии не найден');
                 }
             } else {
-                log('▶️', `Начата сессия ${session.id} | serial: ${serialCounter} | Цели: ${(session.levelData?.goals || []).map(g => `${g.key}:${g.value}`).join(', ')}`, C.cyan);
+            log('▶️', `Начата сессия ${session.id} | serial: ${serialCounter} | Уровень: ${session.levelData?.priority ?? '?'} (id:${session.modeData?.levelId ?? '?'}) | Цели: ${(session.levelData?.goals || []).map(g => `${g.key}:${g.value}`).join(', ')}`, C.cyan);
             }
         } catch (e) {
             const msg = e.response?.data?.message || e.message;
