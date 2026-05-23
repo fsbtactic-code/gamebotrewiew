@@ -863,8 +863,9 @@ async function run() {
 
                 if (activeS?.id) {
                     log('♻️', `Переиспользуем активную сессию ${activeS.id} напрямую...`, C.cyan);
-                    // Симулируем gameplay время (13с во всех режимах)
-                    await sleep(13000);
+                    // Симулируем gameplay время (рандом 13-40с)
+                    const rndTime1 = 13000 + Math.floor(Math.random() * 27000);
+                    await sleep(rndTime1);
                     const s = await getLiveSerial();
                     const goals = activeS.levelData?.goals || [
                         { key: 'plate', value: 48 }, { key: 'glass_cup', value: 32 }, { key: 'mail', value: 25 }
@@ -931,9 +932,10 @@ async function run() {
         // Небольшая пауза перед игрой при безлимите — антифрод
         if (hasUnlimitedLives) await sleep(3000);
 
-        // Simulating gameplay duration to pass server verification
-        log('⏱️', `Симуляция игрового процесса (13 сек)${hasUnlimitedLives ? ' ⚡ БЕЗЛИМИТ' : ''}...`, C.dim);
-        await sleep(13000);
+        // Simulating gameplay duration (random 13-40s to avoid anti-fraud)
+        const rndTime = 13000 + Math.floor(Math.random() * 27000);
+        log('⏱️', `Симуляция игрового процесса (${(rndTime/1000).toFixed(0)} сек)${hasUnlimitedLives ? ' ⚡ БЕЗЛИМИТ' : ''}...`, C.dim);
+        await sleep(rndTime);
 
         // Win and complete game session
         const s = await getLiveSerial();
