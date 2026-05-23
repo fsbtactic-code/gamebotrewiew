@@ -863,8 +863,9 @@ async function run() {
 
                 if (activeS?.id) {
                     log('♻️', `Переиспользуем активную сессию ${activeS.id} напрямую...`, C.cyan);
-                    // Симулируем gameplay время
-                    await sleep(13000);
+                    // Симулируем gameplay время (6с при безлимите, 13с обычно)
+                    const simTime1 = hasUnlimitedLives ? 6000 : 13000;
+                    await sleep(simTime1);
                     const s = await getLiveSerial();
                     const goals = activeS.levelData?.goals || [
                         { key: 'plate', value: 48 }, { key: 'glass_cup', value: 32 }, { key: 'mail', value: 25 }
@@ -885,10 +886,14 @@ async function run() {
                         winsCount++;
                         coinsGained = coinsGot2;
 
-                        // Автоматически забираем награды после прохождения уровня
+                        // Награды собираем всегда. Cubes Master — только без безлимита
                         await autoClaimRewards();
                         await autoClaimNewRewards();
-                        await autoPlayCubesMaster();
+                        if (!hasUnlimitedLives) {
+                            await autoPlayCubesMaster();
+                        } else {
+                            log('⚡', 'Безлимит: Cubes Master пропускаем.', C.dim);
+                        }
                     } catch (endErr) {
                         const errCode = endErr.response?.status;
                         const errMsg = endErr.response?.data?.message || endErr.message;
@@ -920,8 +925,9 @@ async function run() {
         }
 
         // Simulating gameplay duration to pass server verification
-        log('⏱️', 'Симуляция игрового процесса (13 секунд)...', C.dim);
-        await sleep(13000);
+        const simTime = hasUnlimitedLives ? 6000 : 13000;
+        log('⏱️', `Симуляция игрового процесса (${simTime / 1000} сек)${hasUnlimitedLives ? ' ⚡ БЕЗЛИМИТ' : ''}...`, C.dim);
+        await sleep(simTime);
 
         // Win and complete game session
         const s = await getLiveSerial();
@@ -957,9 +963,14 @@ async function run() {
             coinsGained = coinsGot; // Текущий баланс (не прирост)
 
             // Автоматически забираем награды после прохождения уровня
+            // Награды собираем всегда. Cubes Master — только без безлимита
             await autoClaimRewards();
             await autoClaimNewRewards();
-            await autoPlayCubesMaster();
+            if (!hasUnlimitedLives) {
+                await autoPlayCubesMaster();
+            } else {
+                log('⚡', 'Безлимит: Cubes Master пропускаем.', C.dim);
+            }
         } catch (e) {
             const errCode = e.response?.data?.code;
             const errMsg = e.response?.data?.message || e.message;
