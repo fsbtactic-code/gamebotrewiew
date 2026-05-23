@@ -591,17 +591,43 @@ async function autoPlayCubesMaster() {
 
 // ======================== SESSION MANAGEMENT ========================
 
+// Текущий уровень игрока (читается из modeProgress.lastLevelPriority)
+let currentLevelPriority = null;
+
+async function fetchCurrentLevel() {
+    try {
+        const rp = await axios.get(`${BASE}/games/v1/game/progress?campaignId=${CAMPAIGN_ID}`, { headers: H() });
+        const mp = (rp.data?.modeProgress || []).find(m => m.modeId === MODE_ID) || rp.data?.modeProgress;
+        const lp = mp?.lastLevelPriority;
+        if (lp != null) {
+            currentLevelPriority = lp + 1; // следующий уровень после последнего пройденного
+            log('📶', `Текущий уровень: ${currentLevelPriority} (lastLevelPriority=${lp})`, C.dim);
+        }
+    } catch (e) {
+        log('⚠️', `Не удалось получить уровень: ${e.message}`, C.yellow);
+    }
+}
+
 async function startSession() {
-    // НЕ передаём levelPriority — сервер сам выдаёт нужный уровень по прогрессу игрока.
-    // Hardcoded levelPriority: 46 = застревание на одном уровне навсегда!
+    // Сервер требует levelPriority = lastLevelPriority + 1 (следующий уровень).
+    // Без него — errors.validation.entityId. Нельзя слать пустой {}.
+    if (currentLevelPriority == null) {
+        await fetchCurrentLevel();
+    }
+    const levelPriority = currentLevelPriority || 47; // fallback на 47 если нет данных
     const r = await axios.post(`${BASE}/games/v1/game/session/${MODE_ID}/start`,
-        {}, { headers: H() });
+        { levelPriority }, { headers: H() });
     if (r.data?.serial != null) {
         serialCounter = r.data.serial;
         log('🔄', `Serial из /start: ${serialCounter}`, C.dim);
     } else if (r.data?.modeProgress?.serial != null) {
         serialCounter = r.data.modeProgress.serial;
         log('🔄', `Serial из /start modeProgress: ${serialCounter}`, C.dim);
+    }
+    // После успешного старта — обновляем уровень из ответа если есть
+    const endMp = r.data?.modeProgress;
+    if (endMp?.lastLevelPriority != null) {
+        currentLevelPriority = endMp.lastLevelPriority + 1;
     }
     // Session data is nested under .session key
     const session = r.data?.session || r.data;
@@ -687,6 +713,12 @@ async function endSession(sessionId, serial, goals, session) {
         if (r.data?.serial != null) {
             serialCounter = r.data.serial;
             log('🔄', `Serial обновлён: ${serialCounter}`, C.dim);
+        }
+        // Обновляем текущий уровень из ответа /end
+        const endLp = r.data?.modeProgress?.lastLevelPriority;
+        if (endLp != null) {
+            currentLevelPriority = endLp + 1;
+            log('📶', `Следующий уровень: ${currentLevelPriority}`, C.dim);
         }
         return r.data;
     } catch (firstErr) {
@@ -877,7 +909,11 @@ async function run() {
             if (msg?.includes('notEnough') || msg?.includes('balance')) {
                 log('😴', 'Нет жизней. Ждем 30с...', C.dim);
                 await sleep(30000);
+            } else if (e.code === 'ENOTFOUND' || e.code === 'ECONNREFUSED' || e.code === 'ETIMEDOUT' || e.code === 'ECONNRESET') {
+                log('🌐', `Сетевая ошибка (${e.code}): ${msg}. Ждём 15с...`, C.yellow);
+                await sleep(15000);
             } else {
+                log('❌', `/start ошибка: ${msg || e.code || 'неизвестная'}`, C.red);
                 await sleep(5000);
             }
             continue;
