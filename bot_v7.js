@@ -339,7 +339,7 @@ async function buyLife() {
             {},
             {
                 headers: H(serverSerial),
-                params: { x: 0, serial: serverSerial }
+                params: { x: 1, serial: serverSerial }  // x=1 обязателен, x=0 даёт validation error
             }
         );
 
