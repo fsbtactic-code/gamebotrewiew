@@ -843,11 +843,18 @@ async function run() {
                     try {
                         const endData = await endSession(activeS.id, s, goals, activeS);
                         if (endData?.serial) serialCounter = endData.serial;
-                        const accrual = endData?.updatedBalance?.accrual || [];
-                        const coinsGot = accrual.find(a => a.resourceId === 748)?.value || 0;
-                        log('🎉', `ПОБЕДА через переиспользование! +${coinsGot} монет`, C.bgGreen + C.reset + C.bright);
+                        const balancesFromEnd2 = endData?.updatedBalance?.balances || endData?.updatedBalance?.accrual || [];
+                        let coinsGot2 = balancesFromEnd2.find(a => a.resourceId === 748)?.value || 0;
+                        if (coinsGot2 === 0) {
+                            try {
+                                const fb = await axios.get(`${BASE}/balance/v1/game/get-balance`, { headers: H() });
+                                coinsGot2 = (fb.data.balance||fb.data.balances||[]).find(b=>b.resourceId===748)?.value || 0;
+                            } catch (_) {}
+                        }
+                        const xscores2 = endData?.awardXscores || 0;
+                        log('🎉', `ПОБЕДА переиспользование! Монет: ${coinsGot2} | XScore: +${xscores2}`, C.bgGreen + C.reset + C.bright);
                         winsCount++;
-                        coinsGained += coinsGot;
+                        coinsGained = coinsGot2;
 
                         // Автоматически забираем награды после прохождения уровня
                         await autoClaimRewards();
@@ -896,12 +903,25 @@ async function run() {
             const endData = await endSession(session.id, s, goals, session);
             if (endData?.serial) serialCounter = endData.serial;
 
-            const accrual = endData?.updatedBalance?.accrual || [];
-            const coinsGot = accrual.find(a => a.resourceId === 748)?.value || 0;
+            // Реальный ответ /end: { updatedBalance: { balances: [...] }, awardXscores: N, serial: N }
+            // НЕТ поля 'accrual' — монеты (748) читаем из balances или из get-balance
+            const balancesFromEnd = endData?.updatedBalance?.balances || endData?.updatedBalance?.accrual || [];
+            let coinsGot = balancesFromEnd.find(a => a.resourceId === 748)?.value || 0;
+            const xscores = endData?.awardXscores || 0;
+            const lastSessionLost = endData?.lastSessionLost ?? false;
 
-            log('🎉', `УСПЕШНАЯ ПОБЕДА! +${coinsGot} монет (serial=${s})`, C.bgGreen + C.reset + C.bright);
+            // Если монеты не вернулись в /end — считываем из get-balance
+            if (coinsGot === 0) {
+                try {
+                    const freshBal = await axios.get(`${BASE}/balance/v1/game/get-balance`, { headers: H() });
+                    const freshBalances = freshBal.data.balance || freshBal.data.balances || [];
+                    coinsGot = freshBalances.find(b => b.resourceId === 748)?.value || 0;
+                } catch (_) {}
+            }
+
+            log('🎉', `УСПЕШНАЯ ПОБЕДА! Монет: ${coinsGot} | XScore: +${xscores} | Lost: ${lastSessionLost} (serial=${s})`, C.bgGreen + C.reset + C.bright);
             winsCount++;
-            coinsGained += coinsGot;
+            coinsGained = coinsGot; // Текущий баланс (не прирост)
 
             // Автоматически забираем награды после прохождения уровня
             await autoClaimRewards();
