@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Token & secrets (NEVER commit!)
+logs/latest_token.txt
+logs/*.txt
+logs/*.log
+logs/*.json
+
+# Keep logs folder structure
+!logs/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+
+# Temp
+*.tmp
+*.bak
